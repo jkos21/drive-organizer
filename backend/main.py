@@ -44,3 +44,22 @@ def get_files(folder_id: str = None):
     files = list_files(folder_id=folder_id)
     return {"files": files}
 
+from ai_agent import analyze_folder
+from pydantic import BaseModel
+
+class AnalyzeRequest(BaseModel):
+    folder_id: str
+
+@app.post("/ai/analyze")
+async def api_analyze_folder(request: AnalyzeRequest):
+    result = analyze_folder(request.folder_id)
+    return result
+
+from ai_agent import check_vertex_status
+
+@app.get("/ai/status")
+def view_ai_status():
+    return check_vertex_status()
+
+
+

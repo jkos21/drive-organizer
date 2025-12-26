@@ -12,3 +12,5 @@ token.json
 client_secret*.json
 backend/credentials.json
 backend/token.json
+backend/service_account.json
+service_account.json

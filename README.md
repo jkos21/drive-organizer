@@ -1,41 +1,61 @@
-# Drive Organizer AI
+# Drive Organizer
 
-An AI-powered application to reorganize your Google Drive.
+A tool to reorganize Google Drive folders using AI.
 
-## Prerequisites
-1. **Google Cloud Project**: You need a project with "Google Drive API" and "Vertex AI API" enabled.
-2. **Credentials**:
-   - Create an OAuth 2.0 Client ID (Web Application).
-   - Add `http://localhost:5173` (or your frontend URL) to **Authorized Javascript Origins**.
-   - Add `http://localhost:8000/auth/callback` to **Authorized Redirect URIs**.
-   - Download the JSON file and rename it to `credentials.json`.
-   - Place `credentials.json` in the `backend/` directory.
+## Features
+- List Google Drive files
+- **AI Organizer**: Uses Google Vertex AI (Gemini 1.5 Flash) to suggest folder structures based on file names and types.
 
-## Setup & Run
+## Setup
 
-### 1. Backend
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+### Prerequisites
+1.  **Google Cloud Project**: You need a Google Cloud Project with billing enabled (required for Vertex AI).
+2.  **Enable APIs**:
+    -   Google Drive API
+    -   Vertex AI API
+3.  **Credentials**:
+    -   Create an OAuth 2.0 Client ID for the web application (download as `credentials.json` in `backend/`).
 
-# Place credentials.json here!
+### Backend Setup
+1.  Navigate to `backend`:
+    ```bash
+    cd backend
+    ```
+2.  Create a virtual environment:
+    ```bash
+    python -m venv venv
+    source venv/bin/activate
+    ```
+3.  Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+4.  **Vertex AI Configuration**:
+    -   Ensure your user account (or service account) has `Vertex AI User` role.
+    -   The application uses **Application Default Credentials (ADC)** or the project ID from `credentials.json` to authenticate with Vertex AI.
+    -   Run `gcloud auth application-default login` if running locally without a service account, OR ensure `credentials.json` is present and valid.
 
-uvicorn main:app --reload
-```
-Backend will run at `http://localhost:8000`.
+5.  Run the server:
+    ```bash
+    uvicorn main:app --reload
+    ```
 
-### 2. Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Frontend will run at `http://localhost:5173`.
+### Frontend Setup
+1.  Navigate to `frontend`:
+    ```bash
+    cd frontend
+    ```
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Run the development server:
+    ```bash
+    npm run dev
+    ```
 
 ## Usage
-1. Open the frontend.
-2. Click "Sign in with Google".
-3. Allow access.
-4. Browse your files or go to "AI Organizer" to get suggestions.
+1.  Open http://localhost:5173
+2.  Login with Google.
+3.  Go to the **AI Organizer** tab.
+4.  Select a folder and click "Analyze".
