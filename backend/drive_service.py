@@ -17,10 +17,34 @@ def list_files(page_size=10, folder_id=None):
     
     results = service.files().list(
         pageSize=page_size, 
-        fields="nextPageToken, files(id, name, mimeType, parents, owners, shared)",
+        fields="nextPageToken, files(id, name, mimeType, parents, owners, shared, iconLink, size, createdTime)",
         q=query
     ).execute()
     return results.get('files', [])
+
+def get_folder_preview(folder_id, limit=25):
+    """
+    Fetches the top 'limit' files and a count of total items (up to 1000).
+    """
+    service = get_drive_service()
+    query = f"trashed = false and '{folder_id}' in parents"
+    
+    # improved fields to include iconLink and size
+    results = service.files().list(
+        pageSize=1000, 
+        fields="nextPageToken, files(id, name, mimeType, iconLink, size, createdTime)",
+        q=query
+    ).execute()
+    
+    files = results.get('files', [])
+    total_count = len(files)
+    has_more = 'nextPageToken' in results
+    
+    return {
+        "preview": files[:limit],
+        "total_count": total_count,
+        "has_more": has_more
+    }
 
 def move_file(file_id, new_parent_id):
     service = get_drive_service()

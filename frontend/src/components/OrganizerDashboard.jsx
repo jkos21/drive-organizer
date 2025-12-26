@@ -7,16 +7,36 @@ const OrganizerDashboard = ({ token }) => {
     const [analyzing, setAnalyzing] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
+    const [previewData, setPreviewData] = useState(null);
+    const [loadingPreview, setLoadingPreview] = useState(false);
+
+    // Session Cost Tracking
+    const [sessionUsage, setSessionUsage] = useState({ total_tokens: 0, total_cost: 0 });
 
     // Status State
     const [aiStatus, setAiStatus] = useState(null);
     const [loadingStatus, setLoadingStatus] = useState(true);
 
-    const handleFolderSelect = (id, name) => {
+    const handleFolderSelect = async (id, name) => {
         setSelectedFolderId(id);
         setSelectedFolderName(name);
         setResult(null);
         setError(null);
+        setPreviewData(null);
+
+        // Fetch Preview immediately
+        setLoadingPreview(true);
+        try {
+            const res = await fetch(`http://localhost:8000/drive/preview?folder_id=${id}`);
+            const data = await res.json();
+            setPreviewData(data);
+        } catch (err) {
+            console.error("Preview fetch error:", err);
+            // Non-blocking error for preview? Or show error?
+            // Already handled by rendering "Failed to load preview" if previewData is null and not loading
+        } finally {
+            setLoadingPreview(false);
+        }
     };
 
     // 1. Load Status on Mount
@@ -54,6 +74,14 @@ const OrganizerDashboard = ({ token }) => {
             const data = await res.json();
             if (data.error) throw new Error(data.error);
             setResult(data);
+
+            // Update Session Usage if present
+            if (data.usage) {
+                setSessionUsage(prev => ({
+                    total_tokens: prev.total_tokens + data.usage.total_tokens,
+                    total_cost: prev.total_cost + data.usage.estimated_cost_usd
+                }));
+            }
         } catch (err) {
             console.error(err);
             setError(err.message);
@@ -107,25 +135,104 @@ const OrganizerDashboard = ({ token }) => {
                     )}
                 </div>
 
-                {/* Context Selection */}
+                {/* Context Selection and Preview */}
                 {!selectedFolderId ? (
                     <FolderSelector token={token} onSelect={handleFolderSelect} />
                 ) : (
-                    <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Selected Context</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>📁 {selectedFolderName}</div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
-                            <button className="btn" onClick={() => setSelectedFolderId(null)}>Change Folder</button>
-                            <button
-                                className="btn btn-primary"
-                                onClick={runAnalysis}
-                                disabled={analyzing || aiStatus?.status === 'error'}
-                            >
-                                {analyzing ? 'Analyzing...' : 'Run Analysis'}
+                    <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <div>
+                                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Selected Context</div>
+                                <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>📁 {selectedFolderName}</div>
+                            </div>
+                            <button className="btn" onClick={() => { setSelectedFolderId(null); setPreviewData(null); }} disabled={analyzing}>
+                                Change Folder
                             </button>
                         </div>
+
+                        {/* Preview Section */}
+                        {loadingPreview ? (
+                            <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>
+                                <div className="spinner" style={{ marginBottom: '1rem' }}></div>
+                                Fetching folder metadata...
+                            </div>
+                        ) : previewData ? (
+                            <div className="fade-in">
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                                    gap: '1rem',
+                                    marginBottom: '1.5rem',
+                                    background: 'rgba(255,255,255,0.03)',
+                                    padding: '1rem',
+                                    borderRadius: '8px'
+                                }}>
+                                    <div>
+                                        <div style={{ fontSize: '0.8rem', color: '#888' }}>Total Items</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                                            {previewData.total_count}{previewData.has_more ? '+' : ''}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h5 style={{ marginBottom: '0.5rem', color: '#888', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>
+                                    Folder Content Preview ({previewData.preview.length} items)
+                                </h5>
+                                <div style={{
+                                    maxHeight: '250px',
+                                    overflowY: 'auto',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    borderRadius: '8px',
+                                    marginBottom: '1.5rem'
+                                }}>
+                                    {previewData.preview.map(file => (
+                                        <div key={file.id} style={{
+                                            padding: '0.5rem 1rem',
+                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            fontSize: '0.9rem'
+                                        }}>
+                                            <span style={{ marginRight: '0.75rem', fontSize: '1.1rem' }}>
+                                                {file.mimeType.includes('folder') ? '📁' :
+                                                    file.mimeType.includes('image') ? '🖼️' :
+                                                        file.mimeType.includes('pdf') ? '📄' :
+                                                            file.mimeType.includes('text') ? '📝' : '📎'}
+                                            </span>
+                                            <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {file.name}
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: '#666', marginLeft: '1rem' }}>
+                                                {file.mimeType.split('.').pop().split('/').pop()}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {previewData.has_more && (
+                                        <div style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.8rem', color: '#666', fontStyle: 'italic' }}>
+                                            ...and {previewData.total_count - previewData.preview.length}+ more items
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ padding: '0.75rem 2rem', fontSize: '1rem' }}
+                                        onClick={runAnalysis}
+                                        disabled={analyzing || aiStatus?.status === 'error'}
+                                    >
+                                        {analyzing ? (
+                                            <>
+                                                <span className="spinner-small" style={{ marginRight: '0.5rem' }}></span>
+                                                Analyzing with Gemini...
+                                            </>
+                                        ) : 'Start Organization Analysis'}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ color: '#ff6b6b' }}>Failed to load preview.</div>
+                        )}
                     </div>
                 )}
 
@@ -231,6 +338,36 @@ const OrganizerDashboard = ({ token }) => {
                         </div>
                     )}
                 </details>
+            </div>
+
+            {/* Session Cost Footer */}
+            <div style={{
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: 'rgba(0, 0, 0, 0.8)',
+                backdropFilter: 'blur(10px)',
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                padding: '0.75rem 2rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                zIndex: 100
+            }}>
+                <div style={{ fontSize: '0.9rem', color: '#aaa' }}>
+                    <span style={{ marginRight: '1rem' }}>Session Usage</span>
+                </div>
+                <div style={{ display: 'flex', gap: '2rem', fontSize: '0.9rem' }}>
+                    <div>
+                        <span style={{ color: '#888', marginRight: '0.5rem' }}>Tokens:</span>
+                        <span style={{ fontFamily: 'monospace' }}>{sessionUsage.total_tokens.toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <span style={{ color: '#888', marginRight: '0.5rem' }}>Est. Cost:</span>
+                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>${sessionUsage.total_cost.toFixed(6)}</span>
+                    </div>
+                </div>
             </div>
         </div>
     );

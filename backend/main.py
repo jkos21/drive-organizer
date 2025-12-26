@@ -40,9 +40,15 @@ async def root():
 from drive_service import list_files
 
 @app.get("/drive/files")
-def get_files(folder_id: str = None):
-    files = list_files(folder_id=folder_id)
+def get_files(folder_id: str = None, page_size: int = 1000):
+    files = list_files(folder_id=folder_id, page_size=page_size)
     return {"files": files}
+
+from drive_service import get_folder_preview
+
+@app.get("/drive/preview")
+def preview_folder(folder_id: str):
+    return get_folder_preview(folder_id)
 
 from ai_agent import analyze_folder
 from pydantic import BaseModel

@@ -22,8 +22,7 @@ const FolderSelector = ({ token, onSelect }) => {
 
             // Filter only folders for the selection navigation
             // (Unless we want to show files too, but for context selection folders are key)
-            const folders = data.files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
-            setItems(folders);
+            setItems(data.files);
         } catch (error) {
             console.error("Error loading folders:", error);
         } finally {
@@ -88,34 +87,49 @@ const FolderSelector = ({ token, onSelect }) => {
                 borderRadius: '8px'
             }}>
                 {loading ? (
-                    <div style={{ padding: '1rem', textAlign: 'center' }}>Loading folders...</div>
+                    <div style={{ padding: '1rem', textAlign: 'center' }}>Loading items...</div>
                 ) : items.length === 0 ? (
-                    <div style={{ padding: '1rem', textAlign: 'center', color: '#888' }}>No subfolders found</div>
+                    <div style={{ padding: '1rem', textAlign: 'center', color: '#888' }}>No items found</div>
                 ) : (
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                        {items.map(folder => (
-                            <li key={folder.id}>
-                                <button
-                                    onClick={() => handleNavigate(folder)}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        width: '100%',
-                                        padding: '0.75rem 1rem',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                        color: 'var(--text-primary)',
-                                        textAlign: 'left',
-                                        cursor: 'pointer'
-                                    }}
-                                    className="folder-item"
-                                >
-                                    <span style={{ marginRight: '0.5rem' }}>📁</span>
-                                    {folder.name}
-                                </button>
-                            </li>
-                        ))}
+                        {items
+                            // Sort: Folders first, then files
+                            .sort((a, b) => {
+                                const aIsFolder = a.mimeType === 'application/vnd.google-apps.folder';
+                                const bIsFolder = b.mimeType === 'application/vnd.google-apps.folder';
+                                if (aIsFolder && !bIsFolder) return -1;
+                                if (!aIsFolder && bIsFolder) return 1;
+                                return a.name.localeCompare(b.name);
+                            })
+                            .map(item => {
+                                const isFolder = item.mimeType === 'application/vnd.google-apps.folder';
+                                return (
+                                    <li key={item.id}>
+                                        <button
+                                            onClick={() => isFolder ? handleNavigate(item) : null}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                width: '100%',
+                                                padding: '0.75rem 1rem',
+                                                background: 'transparent',
+                                                border: 'none',
+                                                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                color: isFolder ? 'var(--text-primary)' : 'rgba(255,255,255,0.4)',
+                                                textAlign: 'left',
+                                                cursor: isFolder ? 'pointer' : 'default',
+                                                pointerEvents: isFolder ? 'auto' : 'none',
+                                            }}
+                                            className={isFolder ? "folder-item" : ""}
+                                        >
+                                            <span style={{ marginRight: '0.5rem', opacity: isFolder ? 1 : 0.5 }}>
+                                                {isFolder ? '📁' : '📄'}
+                                            </span>
+                                            {item.name}
+                                        </button>
+                                    </li>
+                                );
+                            })}
                     </ul>
                 )}
             </div>

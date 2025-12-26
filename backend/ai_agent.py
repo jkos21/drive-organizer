@@ -187,13 +187,30 @@ Do not include markdown formatting (like ```json), just the raw JSON string.
         except json.JSONDecodeError:
             parsed_response = {"error": "Failed to parse AI response", "raw_text": raw_text}
 
+        # Calculate Usage Stats
+        usage = response.usage_metadata
+        prompt_tokens = usage.prompt_token_count
+        candidate_tokens = usage.candidates_token_count
+        total_tokens = usage.total_token_count
+        
+        # Estimate Cost (Gemini 1.5 Flash Pricing as proxy: ~$0.075/1M input, ~$0.30/1M output)
+        input_cost = (prompt_tokens / 1_000_000) * 0.075
+        output_cost = (candidate_tokens / 1_000_000) * 0.30
+        total_cost = input_cost + output_cost
+
         return {
             "debug": {
                 "prompt_preview": prompt[:500] + "...(truncated)",
                 "full_prompt_structure": structure,
                 "raw_response": raw_text
             },
-            "suggestions": parsed_response
+            "suggestions": parsed_response,
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "response_tokens": candidate_tokens,
+                "total_tokens": total_tokens,
+                "estimated_cost_usd": total_cost
+            }
         }
 
     except Exception as e:
